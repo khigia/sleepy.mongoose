@@ -95,13 +95,20 @@ class MongoHTTPRequest(BaseHTTPRequestHandler):
         else:
             return (parts[0], ".".join(parts[1:-1]), parts[-1])
 
+    def end_headers(self):
+        for header in self.response_headers:
+            self.send_header(header[0], header[1])
+        BaseHTTPRequestHandler.end_headers(self)
+
+    def send_404(self, uri):
+        self.send_error(404, 'Script Not Found: '+uri)
 
     def call_handler(self, uri, args):
         """ execute something """
 
         (db, collection, func_name) = self._parse_call(uri)
         if db == None or func_name == None:
-            self.send_error(404, 'Script Not Found: '+uri)
+            self.send_404(uri)
             return
 
         name = None
@@ -122,8 +129,6 @@ class MongoHTTPRequest(BaseHTTPRequestHandler):
         if callable(func):
             self.send_response(200, 'OK')
             self.send_header('Content-type', MongoHTTPRequest.mimetypes['json'])
-            for header in self.response_headers:
-                self.send_header(header[0], header[1])
             self.end_headers()
 
             if self.jsonp_callback:
@@ -133,7 +138,7 @@ class MongoHTTPRequest(BaseHTTPRequestHandler):
 
             return
         else:
-            self.send_error(404, 'Script Not Found: '+uri)
+            self.send_404(uri)
             return            
         
     def prependJSONPCallback(self, str):
@@ -153,8 +158,6 @@ class MongoHTTPRequest(BaseHTTPRequestHandler):
             else:
                 self.send_response(100, "Continue")
                 self.send_header('Content-type', MongoHTTPRequest.mimetypes['json'])
-                for header in self.response_headers:
-                    self.send_header(header[0], header[1])
                 self.end_headers()
                 self.wfile.write('{"ok" : 0, "errmsg" : "100-continue msgs not handled yet"}')
 
@@ -187,8 +190,6 @@ class MongoHTTPRequest(BaseHTTPRequestHandler):
 
                 self.send_response(200, 'OK')
                 self.send_header('Content-type', MongoHTTPRequest.mimetypes[type])
-                for header in self.response_headers:
-                    self.send_header(header[0], header[1])
                 self.end_headers()
                 self.wfile.write(fh.read())
 
@@ -197,7 +198,7 @@ class MongoHTTPRequest(BaseHTTPRequestHandler):
                 return
 
             else:
-                self.send_error(404, 'File Not Found: '+uri)
+                self.send_404(uri)
 
                 return
 
